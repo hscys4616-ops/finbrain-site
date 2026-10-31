@@ -1,0 +1,52 @@
+name: Deploy homepage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip site
+        run: |
+          shopt -s nullglob
+          zips=( *.zip )
+          echo "zip files: ${zips[*]}"
+          if [ ${#zips[@]} -ne 1 ]; then
+            echo "ERROR: zip file count must be 1 (now ${#zips[@]})"; exit 1
+          fi
+          mkdir -p _unz _site
+          unzip -q "${zips[0]}" -d _unz
+          entries=( _unz/* )
+          if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
+            cp -r "${entries[0]}"/. _site/
+          else
+            cp -r _unz/. _site/
+          fi
+          test -f _site/index.html || { echo "ERROR: no index.html"; exit 1; }
+          ls -la _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
