@@ -42,6 +42,37 @@ jobs:
           test -f _site/index.html || { echo "ERROR: no index.html"; exit 1; }
           ls -la _site
 
+      # v0.9.8: 사업자등록번호 · 통신판매업 신고번호는 저장소에 쓰지 않고 Secret에서 넣음
+      - name: Fill business info from secrets
+        env:
+          BIZ_REG_NO: ${{ secrets.BIZ_REG_NO }}
+          MAILORDER_NO: ${{ secrets.MAILORDER_NO }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys, pathlib
+          reg = os.environ.get("BIZ_REG_NO", "").strip()
+          mo = os.environ.get("MAILORDER_NO", "").strip()
+          if not re.fullmatch(r"\d{3}-\d{2}-\d{5}", reg):
+              sys.exit("ERROR: secret BIZ_REG_NO missing or not in 000-00-00000 form")
+          if not mo or len(mo) > 60 or re.search(r"[<>\"&]", mo):
+              sys.exit("ERROR: secret MAILORDER_NO missing or has invalid characters")
+          digits = reg.replace("-", "")
+          n = 0
+          for p in pathlib.Path("_site").rglob("*.html"):
+              s = p.read_text(encoding="utf-8")
+              t = (s.replace("__BIZ_REG_NO__", reg)
+                    .replace("__MAILORDER_NO__", mo)
+                    .replace("__BIZ_REG_DIGITS__", digits))
+              if t != s:
+                  p.write_text(t, encoding="utf-8"); n += 1
+          print(f"filled {n} files")
+          if n == 0:
+              sys.exit("ERROR: no placeholders found")
+          PY
+          if grep -rl "__BIZ_REG_NO__\|__MAILORDER_NO__\|__BIZ_REG_DIGITS__" _site; then
+            echo "ERROR: placeholder left"; exit 1
+          fi
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
