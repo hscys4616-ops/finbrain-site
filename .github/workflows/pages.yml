@@ -80,12 +80,13 @@ jobs:
             echo "ERROR: placeholder left"; exit 1
           fi
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      # v0.9.20 (11/25): v3는 옛 업로드 방식(Node 20)이라 게시 단계가 파일을 못 찾음 → v5로 올림
+      # v0.9.20 (11/25): Node 20 종료로 세 단계를 Node 24 판으로 함께 올림
+      #   configure-pages v6 · upload-pages-artifact v5 · deploy-pages v5 (짝이 맞아야 게시 단계가 파일을 찾음)
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
